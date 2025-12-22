@@ -65,11 +65,14 @@ const BottomNav: React.FC = () => {
     return location.pathname.startsWith(path);
   };
 
-  // Don't show bottom nav on checkout, order tracking, or driver pages
+  // Don't show bottom nav on cart (when has items), checkout, order tracking, or driver pages
   const hiddenPaths = ['/checkout', '/order', '/driver'];
   const shouldHide = hiddenPaths.some(path => location.pathname.startsWith(path));
   
-  if (shouldHide) {
+  // Hide on cart page when there are items (to show checkout button)
+  const isCartWithItems = location.pathname === '/cart' && cartItemCount > 0;
+  
+  if (shouldHide || isCartWithItems) {
     return null;
   }
 
