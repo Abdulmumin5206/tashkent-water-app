@@ -11,12 +11,35 @@
   --tg-theme-button-text-color: #ffffff;
   --tg-theme-secondary-bg-color: #f1f1f1;
   
-  /* App-specific colors */
+  /* App-specific colors - Cohesive blue palette (Req 8.2) */
   --color-primary: #3b82f6;
   --color-primary-dark: #2563eb;
+  --color-primary-light: #60a5fa;
   --color-success: #22c55e;
+  --color-success-light: #4ade80;
   --color-warning: #f59e0b;
+  --color-warning-light: #fbbf24;
   --color-error: #ef4444;
+  --color-error-light: #f87171;
+  
+  /* Spacing scale based on 8px grid (Req 8.1) */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  
+  /* Touch target minimum (Req 8.4) */
+  --touch-target-min: 44px;
+  
+  /* Transition defaults (Req 8.3) */
+  --transition-fast: 150ms ease-out;
+  --transition-normal: 200ms ease-out;
+  --transition-slow: 300ms ease-out;
   
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -63,7 +86,7 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
-/* Telegram-style buttons */
+/* Telegram-style buttons with minimum touch targets (Req 8.4) */
 .btn-primary {
   background-color: var(--tg-theme-button-color, var(--color-primary));
   color: var(--tg-theme-button-text-color, #ffffff);
@@ -73,18 +96,25 @@ body {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.1s;
+  min-height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
+  transition: opacity var(--transition-fast), transform var(--transition-fast), background-color var(--transition-normal);
   -webkit-tap-highlight-color: transparent;
 }
 
+.btn-primary:hover {
+  background-color: var(--color-primary-dark);
+}
+
 .btn-primary:active {
-  opacity: 0.8;
+  opacity: 0.9;
   transform: scale(0.98);
 }
 
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
 }
 
 .btn-secondary {
@@ -96,23 +126,42 @@ body {
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.1s;
+  min-height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
+  transition: opacity var(--transition-fast), transform var(--transition-fast), background-color var(--transition-normal);
+}
+
+.btn-secondary:hover {
+  background-color: #e5e7eb;
 }
 
 .btn-secondary:active {
-  opacity: 0.8;
+  opacity: 0.9;
   transform: scale(0.98);
 }
 
-/* Card styles */
+/* Card styles with consistent spacing (Req 8.1) */
 .card {
   background-color: var(--tg-theme-bg-color, #ffffff);
   border-radius: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   overflow: hidden;
+  transition: box-shadow var(--transition-normal), transform var(--transition-normal);
 }
 
-/* Input styles */
+.card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.card-interactive {
+  cursor: pointer;
+}
+
+.card-interactive:active {
+  transform: scale(0.98);
+}
+
+/* Input styles with minimum touch targets (Req 8.4) */
 input[type="text"],
 input[type="tel"],
 input[type="email"],
@@ -124,7 +173,8 @@ textarea {
   padding: 14px 16px;
   font-size: 16px;
   width: 100%;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  min-height: var(--touch-target-min);
+  transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
   -webkit-appearance: none;
 }
 
@@ -139,9 +189,11 @@ textarea:focus {
 a {
   color: var(--tg-theme-link-color, var(--color-primary));
   text-decoration: none;
+  transition: color var(--transition-fast);
 }
 
 a:hover {
+  color: var(--color-primary-dark);
   text-decoration: underline;
 }
 
@@ -160,7 +212,7 @@ a:hover {
   border-radius: 2px;
 }
 
-/* Animation utilities */
+/* Animation utilities (Req 8.3) */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -181,6 +233,28 @@ a:hover {
   }
 }
 
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
@@ -190,16 +264,39 @@ a:hover {
   }
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn var(--transition-normal) forwards;
 }
 
 .animate-slide-up {
-  animation: slideUp 0.3s ease-out;
+  animation: slideUp var(--transition-normal) forwards;
+}
+
+.animate-slide-down {
+  animation: slideDown var(--transition-normal) forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn var(--transition-normal) forwards;
 }
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }
 
 /* Status badge colors */
@@ -218,6 +315,33 @@ a:hover {
   color: #065f46;
 }
 
+.status-cancelled {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+/* Touch target utility class (Req 8.4) */
+.touch-target {
+  min-height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
+}
+
+/* Spacing utilities based on 8px grid (Req 8.1) */
+.gap-grid-1 { gap: var(--spacing-2); }
+.gap-grid-2 { gap: var(--spacing-4); }
+.gap-grid-3 { gap: var(--spacing-6); }
+.gap-grid-4 { gap: var(--spacing-8); }
+
+.p-grid-1 { padding: var(--spacing-2); }
+.p-grid-2 { padding: var(--spacing-4); }
+.p-grid-3 { padding: var(--spacing-6); }
+.p-grid-4 { padding: var(--spacing-8); }
+
+.m-grid-1 { margin: var(--spacing-2); }
+.m-grid-2 { margin: var(--spacing-4); }
+.m-grid-3 { margin: var(--spacing-6); }
+.m-grid-4 { margin: var(--spacing-8); }
+
 /* Leaflet map overrides for Telegram style */
 .leaflet-container {
   border-radius: 12px;
@@ -233,6 +357,11 @@ a:hover {
   background-color: var(--tg-theme-bg-color, #ffffff) !important;
   color: var(--tg-theme-text-color, #374151) !important;
   border: none !important;
+  min-width: var(--touch-target-min) !important;
+  min-height: var(--touch-target-min) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .leaflet-control-zoom a:hover {
@@ -268,4 +397,35 @@ a:hover {
 
 .tg-link {
   color: var(--tg-theme-link-color);
+}
+
+/* Toast/Banner animation for welcome message (Req 1.4) */
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toastSlideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+.toast-enter {
+  animation: toastSlideIn var(--transition-normal) forwards;
+}
+
+.toast-exit {
+  animation: toastSlideOut var(--transition-normal) forwards;
 }

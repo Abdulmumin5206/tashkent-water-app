@@ -1,7 +1,11 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { useCustomerInit } from '../hooks/useCustomerInit';
-import { createOrder } from '../services/orders';
+import { createOrder, getCustomerOrderHistory } from '../services/orders';
+import { getSupplierById } from '../services/suppliers';
 import { addItem, removeItem, updateQuantity as updateCartQuantity, validateQuantity } from '../utils/cart';
+import { saveCart, loadCart, clearPersistedCart } from '../utils/cartStorage';
+import { createReorderCart } from '../utils/reorder';
+import { isActiveOrder } from '../utils/orderStatus';
 import type { Customer, CartItem, Order, OrderInput, Supplier, CustomerInput } from '../types';
 
 export interface AppContextValue {
@@ -22,6 +26,16 @@ export interface AppContextValue {
   currentOrder: Order | null;
   setCurrentOrder: (order: Order | null) => void;
   placeOrder: (orderData: OrderInput) => Promise<Order>;
+  
+  // Active order tracking (Requirements 1.3)
+  activeOrder: Order | null;
+  hasActiveOrder: boolean;
+  
+  // Order history (Requirements 2.1, 2.4)
+  orderHistory: Order[];
+  isOrderHistoryLoading: boolean;
+  fetchOrderHistory: () => Promise<void>;
+  reorderFromHistory: (order: Order) => Promise<void>;
 }
 
 const defaultContextValue: AppContextValue = {
@@ -37,6 +51,12 @@ const defaultContextValue: AppContextValue = {
   currentOrder: null,
   setCurrentOrder: () => {},
   placeOrder: async () => { throw new Error('AppContext not initialized'); },
+  activeOrder: null,
+  hasActiveOrder: false,
+  orderHistory: [],
+  isOrderHistoryLoading: false,
+  fetchOrderHistory: async () => {},
+  reorderFromHistory: async () => {},
 };
 
 const AppContext = createContext<AppContextValue>(defaultContextValue);
@@ -48,10 +68,12 @@ interface AppProviderProps {
 /**
  * AppProvider manages the global application state:
  * - Customer data (via useCustomerInit hook)
- * - Cart state (items, add, remove, update, clear)
+ * - Cart state with localStorage persistence (items, add, remove, update, clear)
  * - Current order for tracking
+ * - Active order detection
+ * - Order history with reorder functionality
  * 
- * Requirements: 5.1, 5.2
+ * Requirements: 1.1, 1.2, 1.3, 1.5, 2.1, 2.4, 5.1, 5.2
  */
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   // Customer state from initialization hook
@@ -62,11 +84,43 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     updateCustomerData 
   } = useCustomerInit();
 
-  // Cart state - Requirements 5.1, 5.2
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // Cart state - initialized from localStorage (Requirements 1.1, 1.2)
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    const persistedCart = loadCart();
+    return persistedCart ?? [];
+  });
   
   // Current order for tracking
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
+  
+  // Active order tracking (Requirements 1.3)
+  const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+  
+  // Order history state (Requirements 2.1)
+  const [orderHistory, setOrderHistory] = useState<Order[]>([]);
+  const [isOrderHistoryLoading, setIsOrderHistoryLoading] = useState(false);
+
+  // Persist cart to localStorage on every change (Requirements 1.2)
+  useEffect(() => {
+    saveCart(cart);
+  }, [cart]);
+
+  // Fetch order history and detect active orders when customer is loaded
+  useEffect(() => {
+    if (customer?.id) {
+      // Fetch order history to detect active orders
+      getCustomerOrderHistory(customer.id)
+        .then((orders) => {
+          setOrderHistory(orders);
+          // Find the most recent active order (Requirements 1.3)
+          const active = orders.find((order) => isActiveOrder(order.status));
+          setActiveOrder(active ?? null);
+        })
+        .catch((error) => {
+          console.error('Failed to fetch order history:', error);
+        });
+    }
+  }, [customer?.id]);
 
   // Add item to cart (Req 5.1 - quantity selection)
   const addToCart = useCallback((supplier: Supplier, quantity: number) => {
@@ -96,13 +150,55 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setCart([]);
   }, []);
 
-  // Place order and set as current order for tracking
+  // Place order and set as current order for tracking (Requirements 1.5)
   const placeOrder = useCallback(async (orderData: OrderInput): Promise<Order> => {
     const order = await createOrder(orderData);
     setCurrentOrder(order);
+    setActiveOrder(order); // New order is active
     clearCart();
+    clearPersistedCart(); // Clear persisted cart after successful order (Requirements 1.5)
+    // Update order history with the new order
+    setOrderHistory(prev => [order, ...prev]);
     return order;
   }, [clearCart]);
+
+  // Fetch order history (Requirements 2.1)
+  const fetchOrderHistory = useCallback(async () => {
+    if (!customer?.id) {
+      return;
+    }
+    setIsOrderHistoryLoading(true);
+    try {
+      const orders = await getCustomerOrderHistory(customer.id);
+      setOrderHistory(orders);
+      // Update active order detection
+      const active = orders.find((order) => isActiveOrder(order.status));
+      setActiveOrder(active ?? null);
+    } catch (error) {
+      console.error('Failed to fetch order history:', error);
+    } finally {
+      setIsOrderHistoryLoading(false);
+    }
+  }, [customer?.id]);
+
+  // Reorder from history (Requirements 2.4)
+  const reorderFromHistory = useCallback(async (order: Order) => {
+    try {
+      const supplier = await getSupplierById(order.supplier_id);
+      if (!supplier) {
+        console.error('Supplier not found for reorder:', order.supplier_id);
+        return;
+      }
+      const reorderItems = createReorderCart(order, supplier);
+      // Replace cart with reorder items
+      setCart(reorderItems);
+    } catch (error) {
+      console.error('Failed to reorder:', error);
+    }
+  }, []);
+
+  // Compute hasActiveOrder from activeOrder state
+  const hasActiveOrder = activeOrder !== null;
 
   const contextValue: AppContextValue = {
     customer,
@@ -117,6 +213,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     currentOrder,
     setCurrentOrder,
     placeOrder,
+    activeOrder,
+    hasActiveOrder,
+    orderHistory,
+    isOrderHistoryLoading,
+    fetchOrderHistory,
+    reorderFromHistory,
   };
 
   return (

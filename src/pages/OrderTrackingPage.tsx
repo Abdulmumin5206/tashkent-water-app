@@ -12,6 +12,7 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   received: 'Заказ принят',
   on_the_way: 'Курьер в пути',
   delivered: 'Доставлено',
+  cancelled: 'Отменён',
 };
 
 /**
@@ -21,6 +22,7 @@ const STATUS_ICONS: Record<OrderStatus, string> = {
   received: '📋',
   on_the_way: '🚚',
   delivered: '✅',
+  cancelled: '❌',
 };
 
 /**
@@ -35,8 +37,27 @@ interface OrderStatusStepperProps {
 /**
  * OrderStatusStepper displays order progress through stages
  * Requirements: 6.2 - Show order progress through stages
+ * Handles cancelled orders by showing a different visual state
  */
 const OrderStatusStepper: React.FC<OrderStatusStepperProps> = ({ currentStatus }) => {
+  // For cancelled orders, show a different view
+  if (currentStatus === 'cancelled') {
+    return (
+      <div className="py-4">
+        <div className="flex items-center justify-center">
+          <div className="flex flex-col items-center">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-2xl">
+              ❌
+            </div>
+            <span className="mt-2 text-sm text-red-600 font-medium">
+              Заказ отменён
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const currentIndex = STATUS_STEPS.indexOf(currentStatus);
 
   return (
@@ -224,6 +245,11 @@ const OrderTrackingPage: React.FC = () => {
             {order.status === 'delivered' && (
               <p className="text-green-600 mt-1">Спасибо за заказ!</p>
             )}
+            {order.status === 'cancelled' && order.cancellation_reason && (
+              <p className="text-red-600 mt-2 text-sm">
+                Причина: {order.cancellation_reason}
+              </p>
+            )}
           </div>
 
           {/* Status Stepper - Req 6.2 */}
@@ -289,8 +315,8 @@ const OrderTrackingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* New Order Button (shown when delivered) */}
-        {order.status === 'delivered' && (
+        {/* New Order Button (shown when delivered or cancelled) */}
+        {(order.status === 'delivered' || order.status === 'cancelled') && (
           <button
             onClick={() => navigate('/')}
             className="w-full py-4 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition-colors"

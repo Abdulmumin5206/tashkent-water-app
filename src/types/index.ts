@@ -61,7 +61,7 @@ export interface Customer {
   updated_at?: string;
 }
 
-export type OrderStatus = 'received' | 'on_the_way' | 'delivered';
+export type OrderStatus = 'received' | 'on_the_way' | 'delivered' | 'cancelled';
 export type PaymentMethod = 'cash' | 'card_transfer';
 
 export interface Order {
@@ -77,9 +77,37 @@ export interface Order {
   phone: string;
   payment_method: PaymentMethod;
   status: OrderStatus;
+  cancellation_reason?: string;
+  cancelled_at?: string;
   created_at?: string;
   updated_at?: string;
 }
+
+// Cart persistence interface
+export interface PersistedCart {
+  items: CartItem[];
+  lastUpdated: string;
+}
+
+// Analytics summary interface
+export interface DailySummary {
+  totalOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+  totalRevenue: number;
+  date: string;
+}
+
+// Order filter tabs for supplier dashboard
+export type OrderTab = 'new' | 'in_progress' | 'completed' | 'cancelled';
+
+// Tab to status mapping
+export const TAB_STATUS_MAP: Record<OrderTab, OrderStatus> = {
+  new: 'received',
+  in_progress: 'on_the_way',
+  completed: 'delivered',
+  cancelled: 'cancelled',
+};
 
 export interface CartItem {
   supplier: Supplier;
@@ -120,11 +148,21 @@ export interface TelegramContextValue {
 
 export interface AppContextValue {
   customer: Customer | null;
+  isCustomerLoading: boolean;
+  customerError: Error | null;
+  updateCustomerData: (updates: Partial<CustomerInput>) => Promise<Customer | null>;
   cart: CartItem[];
   currentOrder: Order | null;
   addToCart: (supplier: Supplier, quantity: number) => void;
   removeFromCart: (supplierId: string) => void;
   updateQuantity: (supplierId: string, quantity: number) => void;
   clearCart: () => void;
+  setCurrentOrder: (order: Order | null) => void;
   placeOrder: (orderData: OrderInput) => Promise<Order>;
+  activeOrder: Order | null;
+  hasActiveOrder: boolean;
+  orderHistory: Order[];
+  isOrderHistoryLoading: boolean;
+  fetchOrderHistory: () => Promise<void>;
+  reorderFromHistory: (order: Order) => Promise<void>;
 }

@@ -1,11 +1,12 @@
 import { supabase } from './supabase';
 import type { Order, OrderInput, OrderStatus } from '../types';
 
-// Valid status transitions
+// Valid status transitions (extended to support cancellation)
 const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  received: ['on_the_way'],
+  received: ['on_the_way', 'cancelled'],
   on_the_way: ['delivered'],
   delivered: [],
+  cancelled: [],
 };
 
 /**
@@ -206,4 +207,122 @@ export function subscribeToOrdersByStatus(
   return () => {
     subscription.unsubscribe();
   };
+}
+
+
+/**
+ * Gets all orders for a specific customer, sorted by created_at DESC (newest first)
+ * This is the order history function for customers
+ * @param customerId - The customer's UUID
+ * @returns Promise<Order[]> - Array of customer's orders sorted by date (newest first)
+ */
+export async function getCustomerOrderHistory(customerId: string): Promise<Order[]> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('customer_id', customerId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching customer order history:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+/**
+ * Cancels an order with a reason
+ * Only orders with status 'received' can be cancelled
+ * @param orderId - The order's UUID
+ * @param reason - The cancellation reason
+ * @returns Promise<Order> - The cancelled order
+ * @throws Error if the order cannot be cancelled
+ */
+export async function cancelOrder(orderId: string, reason: string): Promise<Order> {
+  // First, get the current order to validate the transition
+  const { data: currentOrder, error: fetchError } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('id', orderId)
+    .single();
+
+  if (fetchError) {
+    console.error('Error fetching order:', fetchError);
+    throw fetchError;
+  }
+
+  // Validate the status transition
+  const currentStatus = currentOrder.status as OrderStatus;
+  const validNextStatuses = VALID_TRANSITIONS[currentStatus];
+
+  if (!validNextStatuses.includes('cancelled')) {
+    throw new Error(
+      `Cannot cancel order: current status is '${currentStatus}'. Only orders with status 'received' can be cancelled.`
+    );
+  }
+
+  // Update the order with cancellation data
+  const cancelledAt = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('orders')
+    .update({
+      status: 'cancelled',
+      cancellation_reason: reason,
+      cancelled_at: cancelledAt,
+      updated_at: cancelledAt,
+    })
+    .eq('id', orderId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error cancelling order:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * Gets the count of orders grouped by status
+ * Optionally filtered by supplier
+ * @param supplierId - Optional supplier UUID to filter by
+ * @returns Promise<Record<OrderStatus, number>> - Count of orders for each status
+ */
+export async function getOrderCountsByStatus(
+  supplierId?: string
+): Promise<Record<OrderStatus, number>> {
+  let query = supabase.from('orders').select('status');
+
+  if (supplierId) {
+    query = query.eq('supplier_id', supplierId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching order counts:', error);
+    throw error;
+  }
+
+  // Initialize counts for all statuses
+  const counts: Record<OrderStatus, number> = {
+    received: 0,
+    on_the_way: 0,
+    delivered: 0,
+    cancelled: 0,
+  };
+
+  // Count orders by status
+  if (data) {
+    for (const order of data) {
+      const status = order.status as OrderStatus;
+      if (status in counts) {
+        counts[status]++;
+      }
+    }
+  }
+
+  return counts;
 }

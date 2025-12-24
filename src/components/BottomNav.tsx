@@ -7,6 +7,25 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   badge?: number;
+  showBadge?: boolean;
+}
+
+/**
+ * Calculates the total number of items in the cart
+ * @param cart - Array of cart items with quantities
+ * @returns Sum of all item quantities
+ */
+export function calculateCartBadgeCount(cart: { quantity: number }[]): number {
+  return cart.reduce((sum, item) => sum + item.quantity, 0);
+}
+
+/**
+ * Determines if the active order badge should be shown
+ * @param hasActiveOrder - Whether there is an active order
+ * @returns true if badge should be visible
+ */
+export function shouldShowActiveOrderBadge(hasActiveOrder: boolean): boolean {
+  return hasActiveOrder;
 }
 
 /**
@@ -14,17 +33,19 @@ interface NavItem {
  * 
  * Provides navigation between main customer pages:
  * - Home (Marketplace)
- * - Cart (with item count badge)
+ * - Orders (Order History) - with badge for active orders
+ * - Cart - with item count badge
+ * - Profile (Account Settings)
  * 
- * Requirements: All - Provides consistent navigation for customers
+ * Requirements: 4.1, 4.2, 4.3, 4.4
  */
 const BottomNav: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { cart } = useApp();
+  const { cart, hasActiveOrder } = useApp();
 
-  // Calculate total items in cart
-  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  // Calculate total items in cart (Requirements 4.3)
+  const cartItemCount = calculateCartBadgeCount(cart);
 
   const navItems: NavItem[] = [
     {
@@ -42,6 +63,22 @@ const BottomNav: React.FC = () => {
       ),
     },
     {
+      path: '/orders',
+      label: 'Заказы',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth={2} 
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" 
+          />
+        </svg>
+      ),
+      // Show badge when there's an active order (Requirements 4.4)
+      showBadge: shouldShowActiveOrderBadge(hasActiveOrder),
+    },
+    {
       path: '/cart',
       label: 'Корзина',
       icon: (
@@ -54,7 +91,22 @@ const BottomNav: React.FC = () => {
           />
         </svg>
       ),
+      // Show cart item count badge (Requirements 4.3)
       badge: cartItemCount > 0 ? cartItemCount : undefined,
+    },
+    {
+      path: '/profile',
+      label: 'Профиль',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth={2} 
+            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
+          />
+        </svg>
+      ),
     },
   ];
 
@@ -65,7 +117,7 @@ const BottomNav: React.FC = () => {
     return location.pathname.startsWith(path);
   };
 
-  // Don't show bottom nav on cart (when has items), checkout, order tracking, or driver pages
+  // Don't show bottom nav on checkout, order tracking, or driver pages (Requirements 4.5)
   const hiddenPaths = ['/checkout', '/order', '/driver'];
   const shouldHide = hiddenPaths.some(path => location.pathname.startsWith(path));
   
@@ -91,10 +143,15 @@ const BottomNav: React.FC = () => {
             >
               <div className="relative">
                 {item.icon}
+                {/* Numeric badge for cart count (Requirements 4.3) */}
                 {item.badge !== undefined && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                     {item.badge > 99 ? '99+' : item.badge}
                   </span>
+                )}
+                {/* Dot badge for active orders (Requirements 4.4) */}
+                {item.showBadge && (
+                  <span className="absolute -top-1 -right-1 bg-blue-500 rounded-full w-3 h-3" />
                 )}
               </div>
               <span className="text-xs mt-1">{item.label}</span>

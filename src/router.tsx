@@ -5,6 +5,8 @@ import {
   CartPage,
   CheckoutPage,
   OrderTrackingPage,
+  OrderHistoryPage,
+  AccountSettingsPage,
   DriverLoginPage,
   DriverDashboardPage,
   DriverOrderDetailPage,
@@ -18,6 +20,8 @@ import { ProtectedDriverRoute, CustomerLayout } from './components';
  * - / : Marketplace page (browse suppliers)
  * - /supplier/:id : Supplier detail page
  * - /cart : Shopping cart
+ * - /orders : Order history
+ * - /profile : Account settings
  * - /checkout : Checkout with location picker
  * - /order/:id : Order tracking
  * 
@@ -45,6 +49,14 @@ const router = createBrowserRouter([
       {
         path: '/cart',
         element: <CartPage />,
+      },
+      {
+        path: '/orders',
+        element: <OrderHistoryPage />,
+      },
+      {
+        path: '/profile',
+        element: <AccountSettingsPage />,
       },
     ],
   },
